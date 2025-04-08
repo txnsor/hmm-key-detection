@@ -1,0 +1,19 @@
+This is a guide to the given audio track. 
+
+A: no modulation (Cmaj)
+
+I: 	IM7-vii°-vi(m7)-V7 				(simple functional progression)
+II: 	IM7-vii°-vi(m7)-V7 				(add arpeggiation)
+III:	IM7-II7(sus2)-IVM7-iv(M7)			(non-traditional chords + arp)
+IV: 	IM7-II7(sus2)-IVM7-iv(M7)			(diatonic passing notes)
+
+B: modulation and tonicization
+
+V:	V7/V-V7/I-IM7 : V7/V-V7/I-V7/bII-V7/vii°-I/vii°		(secondary dominants + tritone sub)
+Key:	GMaj CMaj     : GMaj Cmaj Gbmaj  Bmaj
+
+VI:	IM7/I-V7/I-IM7/III-V/III-IM7/bvi-V/bvi-IM7/I-V7/I	(giant steps around B)
+
+VII:	diatonic arpeggios					(arpeggios about D# dorian)
+
+VIII: 	non-functional harmony					(quartal chords, 12-tone serialism)

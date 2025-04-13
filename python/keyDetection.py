@@ -79,30 +79,30 @@ def hmm_based_key(file, fs=2.0, MAJOR_PROFILE=KRUMHANSL_SCHMUCKLER_MAJOR, MINOR_
     chromas = normalize(pm.PrettyMIDI(file).get_chroma(fs=fs))
     return hmm_based_key_from_chromas(chromas, fs, MAJOR_PROFILE, MINOR_PROFILE, covars)
 
-# TEST 1: BASIC COVARS ON V-I
-
-simple = "./midi/simple.mid"
+simple = "./midi/II.mid"
 res_khs = weight_based_key(simple)
 
 # covars generated from KHS, squared logarithmic
 covars = []
 for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MAJOR, -i))
 for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MINOR, -i))
-covars = np.log(np.array(covars))**2
+covars = np.log(np.array(covars))
 covars /= np.max(covars)
 
 res_hmm = hmm_based_key(simple, covars=covars)
+res_hmm_2 = hmm_based_key(simple, covars=covars**2)
 
 print([MODE_TABLE[i] for i in res_khs])
 print([MODE_TABLE[i] for i in res_hmm])
 
 plt.plot(res_khs, label = "KHS Predicted")
-plt.plot(res_hmm, label = "HMM Predicted")
+plt.plot(res_hmm, label = "HMM Predicted (log KHS Covariance)")
+plt.plot(res_hmm_2, label = "HMM Predicted (log^2 KHS Covariance)")
 plt.plot([0 for i in range(len(res_khs))], label = "Theoretical")
 plt.xlabel("Time Slice")
 plt.ylabel("Key")
 yt = [i for i in range(24)]
 plt.yticks(yt, MODE_TABLE)
 plt.legend()
-plt.title("Key Changes in simple.mid")
+plt.title("Key Changes in II.mid")
 plt.show()

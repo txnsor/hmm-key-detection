@@ -4,6 +4,8 @@ import pretty_midi as pm
 import numpy as np
 # gaussian because continuous data
 from hmmlearn.hmm import GaussianHMM
+# matplotlib for data visuals
+import matplotlib.pyplot as plt
 
 # both methods use different 
 
@@ -79,14 +81,14 @@ def hmm_based_key(file, fs=2.0, MAJOR_PROFILE=KRUMHANSL_SCHMUCKLER_MAJOR, MINOR_
 
 # TEST 1: BASIC COVARS ON V-I
 
-simple = "./midi/I.mid"
+simple = "./midi/simple.mid"
 res_khs = weight_based_key(simple)
 
-# covars generated from KHS, logarithmic
+# covars generated from KHS, squared logarithmic
 covars = []
 for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MAJOR, -i))
 for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MINOR, -i))
-covars = np.log(np.array(covars))
+covars = np.log(np.array(covars))**2
 covars /= np.max(covars)
 
 res_hmm = hmm_based_key(simple, covars=covars)
@@ -94,4 +96,13 @@ res_hmm = hmm_based_key(simple, covars=covars)
 print([MODE_TABLE[i] for i in res_khs])
 print([MODE_TABLE[i] for i in res_hmm])
 
-# RESULT: essentially identifies the chord being played
+plt.plot(res_khs, label = "KHS Predicted")
+plt.plot(res_hmm, label = "HMM Predicted")
+plt.plot([0 for i in range(len(res_khs))], label = "Theoretical")
+plt.xlabel("Time Slice")
+plt.ylabel("Key")
+yt = [i for i in range(24)]
+plt.yticks(yt, MODE_TABLE)
+plt.legend()
+plt.title("Key Changes in simple.mid")
+plt.show()

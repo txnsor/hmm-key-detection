@@ -1,3 +1,5 @@
+#
+
 # this library is awesome
 import pretty_midi as pm
 # numpy :/
@@ -18,6 +20,11 @@ MODE_TABLE = [
 KRUMHANSL_SCHMUCKLER_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
 KRUMHANSL_SCHMUCKLER_MINOR = [6.33, 2.68, 3.52, 5.38, 2.6, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
 
+BELLMAN_BUDGE_MAJOR = [16.8, 0.86, 12.95, 1.41, 13.49, 11.93, 1.25, 20.28, 1.8, 8.04, 0.62, 10.57]
+BELLMAN_BUDGE_MINOR = [18.16, 0.69, 12.99, 13.34, 1.07, 11.15, 1.38, 21.07, 7.49, 1.53, 0.92, 10.21]
+
+CUSTOM_PROFILE_SIMPLE_MAJ = [1.0, 0.1, 0.5, 0.1, 0.7, 0.5, 0.1, 0.9, 0.1, 0.5, 0.1, 0.7]
+CUSTOM_PROFILE_SIMPLE_MIN = [1.0, 0.1, 0.5, 0.7, 0.1, 0.5, 0.1, 0.9, 0.5, 0.1, 0.7, 0.1]
 
 # normalize 12xN chroma array
 def normalize(chroma): 
@@ -79,30 +86,75 @@ def hmm_based_key(file, fs=2.0, MAJOR_PROFILE=KRUMHANSL_SCHMUCKLER_MAJOR, MINOR_
     chromas = normalize(pm.PrettyMIDI(file).get_chroma(fs=fs))
     return hmm_based_key_from_chromas(chromas, fs, MAJOR_PROFILE, MINOR_PROFILE, covars)
 
-simple = "./midi/II.mid"
-res_khs = weight_based_key(simple)
+def map_min_maj(a):
+    if a < 12: return a
+    else: return (a - 21) % 12
+
+simple = "./midi/VI.mid"
+res_khs = weight_based_key(simple, fs=1.0)
 
 # covars generated from KHS, squared logarithmic
 covars = []
-for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MAJOR, -i))
-for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MINOR, -i))
-covars = np.log(np.array(covars))
+for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MAJOR, i))
+for i in range(12): covars.append(np.roll(KRUMHANSL_SCHMUCKLER_MINOR, i))
+covars = 1/(np.array(covars))
 covars /= np.max(covars)
 
-res_hmm = hmm_based_key(simple, covars=covars)
-res_hmm_2 = hmm_based_key(simple, covars=covars**2)
+covars2 = []
+for i in range(12): covars2.append(np.roll(BELLMAN_BUDGE_MAJOR, i))
+for i in range(12): covars2.append(np.roll(BELLMAN_BUDGE_MINOR, i))
+covars2 = 1/(np.array(covars2))
+covars2 /= np.max(covars2)
 
-print([MODE_TABLE[i] for i in res_khs])
-print([MODE_TABLE[i] for i in res_hmm])
+custom_covars = []
+for i in range(12): custom_covars.append(np.roll(CUSTOM_PROFILE_SIMPLE_MAJ, i))
+for i in range(12): custom_covars.append(np.roll(CUSTOM_PROFILE_SIMPLE_MIN, i))
+custom_covars /= np.max(custom_covars)
 
-plt.plot(res_khs, label = "KHS Predicted")
-plt.plot(res_hmm, label = "HMM Predicted (log KHS Covariance)")
-plt.plot(res_hmm_2, label = "HMM Predicted (log^2 KHS Covariance)")
-plt.plot([0 for i in range(len(res_khs))], label = "Theoretical")
+res_hmm = hmm_based_key(simple, covars=covars**2, fs=1.0)
+res_hmm_2 = hmm_based_key(simple, covars=custom_covars, fs=1.0)
+res_hmm_3 = hmm_based_key(simple, MAJOR_PROFILE=CUSTOM_PROFILE_SIMPLE_MAJ, MINOR_PROFILE=CUSTOM_PROFILE_SIMPLE_MIN, covars=custom_covars, fs=1.0)
+res_hmm_4 = hmm_based_key(simple, MAJOR_PROFILE=BELLMAN_BUDGE_MAJOR, MINOR_PROFILE=BELLMAN_BUDGE_MINOR, covars=custom_covars, fs=1.0)
+
+# plt.plot([map_min_maj(i) for i in res_khs] , label = "KHS Predicted", linestyle="dotted")
+# # plt.plot([map_min_maj(i) for i in res_hmm], label = "HMM Predicted (Inv. Squared KHS Covariance + KHS Weighting)")
+# plt.plot([map_min_maj(i) for i in res_hmm_2], label = "HMM Predicted (Custom Covariance + KHS Weighting)")
+# plt.plot([map_min_maj(i) for i in res_hmm_3], label = "HMM Predicted (Custom Covariance + Custom Weighting)")
+# # plt.plot([0 for i in range(len(res_khs))], label = "Theoretical")
+# plt.xlabel("Time Slice")
+# plt.ylabel("Key")
+# yt = [i for i in range(12)]
+# plt.yticks(yt, [
+#     "{} / {}".format(MODE_TABLE[i], MODE_TABLE[(i+9)%12 + 12]) for i in range(12)
+# ])
+# plt.legend()
+# plt.title("Key Changes in full.mid")
+# plt.show()
+
+plt.plot(res_khs, label = "KHS Predicted", linestyle="dotted")
+# plt.plot([map_min_maj(i) for i in res_hmm], label = "HMM Predicted (Inv. Squared KHS Covariance + KHS Weighting)")
+plt.plot(res_hmm_2, label = "HMM Predicted (Custom Covariance + KHS Weighting)")
+plt.plot(res_hmm_3, label = "HMM Predicted (Custom Covariance + Custom Weighting)")
+plt.plot(res_hmm_4, label = "HMM Predicted (Custom Covariance + Bellman-Bulge Weighting)")
+# plt.plot([0 for i in range(len(res_khs))], label = "Theoretical")
 plt.xlabel("Time Slice")
 plt.ylabel("Key")
 yt = [i for i in range(24)]
 plt.yticks(yt, MODE_TABLE)
 plt.legend()
-plt.title("Key Changes in II.mid")
+plt.title("Key Changes in full.mid")
 plt.show()
+
+
+
+
+### OBSERVATIONS
+
+"""
+1. The less observations for key changing, the more accurate the model.
+2. The covariance matrix changes the results drastically.
+3. The initial weighted data is not very accurate on a local scale, but predicts overall key more accurately.
+4. My heuristic is decently accurate.
+5. A multi-layer approach might be more effective.
+6. The model does NOT like arpeggiation or modes, but can deal with modulation.
+"""

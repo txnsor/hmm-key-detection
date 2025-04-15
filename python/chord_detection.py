@@ -6,13 +6,13 @@ A chord is a tuple (T, Q) where:
 Example: chord = (0, MAJ_PATTERN) # C maj
 """
 
+# marc browning
+# detects chords from MIDI over time slices
+
 import pretty_midi, math
 import numpy as np
 from hmmlearn.hmm import GaussianHMM
 import matplotlib.pyplot as plt
-
-# chord patterns
-strength_values = ()
 
 # possible notes
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -120,12 +120,14 @@ def hmm_based_chords_from_chromas(chromas, fs=2.0, var=0.05, strength_values=Non
     # make the predictions
     return (model.predict(chromas.T))
 
+# turn hmm observations into a chord sequence
 def chord_seq(hmm_predictions, strength_values=None):
     sv = strength_values
     if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
     chords = _all_possible_chords(strength_values=sv)
     return [_chord_tuple_to_name(chords[i], strength_values=sv) for i in hmm_predictions]
 
+# plot predicted key with preset values and label
 def plot_file(file, label, fs=2.0, var=0.05, strength_values=None):
     # i dont need all of this handling, i know
     sv = strength_values
@@ -134,22 +136,23 @@ def plot_file(file, label, fs=2.0, var=0.05, strength_values=None):
     hmm_out = hmm_based_chords_from_chromas(chroma_data, fs=fs, var=var, strength_values=sv)
     plt.plot(hmm_out, label=label)
 
-# example
+def main():
+    file = "./midi/II.mid"
 
-file = "./midi/II.mid"
+    plot_file(file, "Predicted Chords (On/Off Heuristic, var=0.05)")
+    # plot_file(file, "Predicted Chords (V->I Heuristic)", strength_values=(1.0, 0.333, 0.666, 0.333, 0.0))
+    # plot_file(file, "Predicted Chords (Guide Tone Heuristic)", strength_values=(0.666, 1.0, 0.333, 1.0, 0.0))
+    # plot_file(file, "Predicted Chords (Loose Heuristic)", strength_values=(1.0, 0.7, 0.4, 0.8, 0.1))
 
-plot_file(file, "Predicted Chords (On/Off Heuristic)")
-# plot_file(file, "Predicted Chords (V->I Heuristic)", strength_values=(1.0, 0.333, 0.666, 0.333, 0.0))
-# plot_file(file, "Predicted Chords (Guide Tone Heuristic)", strength_values=(0.666, 1.0, 0.333, 1.0, 0.0))
-# plot_file(file, "Predicted Chords (Loose Heuristic)", strength_values=(1.0, 0.7, 0.4, 0.8, 0.1))
+    # plt.plot(hmm_out, label="Predicted Chord Sequence (Chords)")
 
-# plt.plot(hmm_out, label="Predicted Chord Sequence (Chords)")
+    plt.xlabel("Time Slice")
+    plt.ylabel("Chord")
+    yt = [i for i in range(48)]
+    plt.yticks(yt, [_chord_tuple_to_name(i) for i in _all_possible_chords()])
+    plt.title("Arpeggiated V-I")
+    plt.legend()
+    plt.show()
 
-plt.xlabel("Time Slice")
-plt.ylabel("Chord")
-yt = [i for i in range(48)]
-plt.yticks(yt, [_chord_tuple_to_name(i) for i in _all_possible_chords()])
-plt.title("Arpeggiated V-I (variance = .05)")
-plt.legend()
-plt.show()
+if __name__ == "__main__": main()
 

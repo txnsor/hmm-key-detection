@@ -12,34 +12,59 @@ from hmmlearn.hmm import GaussianHMM
 import matplotlib.pyplot as plt
 
 # chord patterns
-MAJ_PATTERN = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1] # maj7
-MIN_PATTERN = [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0] # min7
-DOM_PATTERN = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0] # dom7
-DIM_PATTERN = [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1] # half-dim
+strength_values = ()
+
 # possible notes
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
+# generate chord patterns given a strength tuple where:
+"""
+S = (s0, s1, s2, s3, s4):
+    s0 is the weight given to the root note
+    s1 is the weight given to the third
+    s2 is the weight given to the fifth
+    s3 is the weight given to the seventh
+    s4 is the weight on every other note
+"""
+# returns (maj, min, dom, dim) according to strength values
+# (helper function)
+def _generate_chord_patterns(strength_values=None):
+    sv = strength_values
+    if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
+    maj = [sv[0], sv[4], sv[4], sv[4], sv[1], sv[4], sv[4], sv[2], sv[4], sv[4], sv[4], sv[3]] # maj7
+    min = [sv[0], sv[4], sv[4], sv[1], sv[4], sv[4], sv[4], sv[2], sv[4], sv[4], sv[3], sv[4]] # min7
+    dom = [sv[0], sv[4], sv[4], sv[4], sv[1], sv[4], sv[4], sv[2], sv[4], sv[4], sv[3], sv[4]] # dom7
+    dim = [sv[0], sv[4], sv[4], sv[1], sv[4], sv[4], sv[2], sv[4], sv[4], sv[4], sv[4], sv[3]] # half-dim
+    return (maj, min, dom, dim)
+
 # turn a chord tuple into a string (helper function)
-def _chord_tuple_to_name(chord):
+def _chord_tuple_to_name(chord, strength_values=None):
+    sv = strength_values
+    if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
+
     note = NOTES[chord[0] % 12]
+    patterns = _generate_chord_patterns(strength_values=sv)
 
     q = chord[1]
     quality = None
-    if q == MAJ_PATTERN: quality = "maj"
-    elif q == MIN_PATTERN: quality = "min"
-    elif q == DOM_PATTERN: quality = "dom"
-    elif q == DIM_PATTERN: quality = "dim"
+    if q == patterns[0]: quality = "maj"
+    elif q == patterns[1]: quality = "min"
+    elif q == patterns[2]: quality = "dom"
+    elif q == patterns[3]: quality = "dim"
 
     return f"{note}{quality}"
 
 # return all 48 possible chords (helper function)
-def _all_possible_chords():
+def _all_possible_chords(strength_values=None):
     res = []
+    sv = strength_values
+    if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
+    p = _generate_chord_patterns(strength_values=sv)
     for i in range(12):
-        res.append((i, MAJ_PATTERN))
-        res.append((i, MIN_PATTERN))
-        res.append((i, DOM_PATTERN))
-        res.append((i, DIM_PATTERN))
+        res.append((i, p[0]))
+        res.append((i, p[1]))
+        res.append((i, p[2]))
+        res.append((i, p[3]))
     return res
 
 # normalize 12xN chroma array (helper function)
@@ -61,15 +86,22 @@ def _normalize(chroma):
 def chroma(file, fs=2.0): return _normalize(pretty_midi.PrettyMIDI(file).get_chroma(fs=fs))
 
 # use a hidden markov model to predict key
-def hmm_based_chords_from_chromas(chromas, fs=2.0, var=0.05):
+def hmm_based_chords_from_chromas(chromas, fs=2.0, var=0.05, strength_values=None):
+    # init chord patterns
+    sv = strength_values
+    if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
+
+    # all possible states and # of states
+    states = _all_possible_chords(strength_values=sv)
+    n = len(states)
+
     # gaussian HMM for cont. data over 48 possible chords
-    model = GaussianHMM(n_components = 48, n_iter = 100, covariance_type="full")
+    model = GaussianHMM(n_components = n, n_iter = 100, covariance_type="full")
 
     # initialize the transition matrix
-    transmat  = np.ones((48, 48)) / 48.0
+    transmat  = np.ones((n, n)) / float(n)
     model.transmat_ = transmat / transmat.sum(axis=1, keepdims=True)
     
-    states = _all_possible_chords()
 
     # initialize the key profiles
     profiles = []
@@ -80,37 +112,44 @@ def hmm_based_chords_from_chromas(chromas, fs=2.0, var=0.05):
     model.means_ = profiles/profiles.sum(axis=1, keepdims=True)
 
     # all chords start equally likely
-    model.startprob_ = np.ones(48) / 48.0
+    model.startprob_ = np.ones(n) / float(n)
 
     # set the covariance matrix (small variance around chords)
-    model.covars_ = np.tile(np.identity(12)*var, (48, 1, 1))
+    model.covars_ = np.tile(np.identity(12)*var, (n, 1, 1))
 
     # make the predictions
     return (model.predict(chromas.T))
 
-def chord_seq(hmm_predictions):
-    chords = _all_possible_chords()
-    return [_chord_tuple_to_name(chords[i]) for i in hmm_predictions]
+def chord_seq(hmm_predictions, strength_values=None):
+    sv = strength_values
+    if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
+    chords = _all_possible_chords(strength_values=sv)
+    return [_chord_tuple_to_name(chords[i], strength_values=sv) for i in hmm_predictions]
+
+def plot_file(file, label, fs=2.0, var=0.05, strength_values=None):
+    # i dont need all of this handling, i know
+    sv = strength_values
+    if sv == None: sv = (1.0, 1.0, 1.0, 1.0, 0.0)
+    chroma_data = chroma(file, fs=fs)
+    hmm_out = hmm_based_chords_from_chromas(chroma_data, fs=fs, var=var, strength_values=sv)
+    plt.plot(hmm_out, label=label)
 
 # example
 
 file = "./midi/II.mid"
-chroma_data = chroma(file)
-hmm_out = hmm_based_chords_from_chromas(chroma_data)
 
-plt.plot(hmm_out, label="Predicted Chord Sequence of (Arpeggio)")
+plot_file(file, "Predicted Chords (On/Off Heuristic)")
+# plot_file(file, "Predicted Chords (V->I Heuristic)", strength_values=(1.0, 0.333, 0.666, 0.333, 0.0))
+# plot_file(file, "Predicted Chords (Guide Tone Heuristic)", strength_values=(0.666, 1.0, 0.333, 1.0, 0.0))
+# plot_file(file, "Predicted Chords (Loose Heuristic)", strength_values=(1.0, 0.7, 0.4, 0.8, 0.1))
 
-file = "./midi/I.mid"
-chroma_data = chroma(file)
-hmm_out = hmm_based_chords_from_chromas(chroma_data)
-
-plt.plot(hmm_out, label="Predicted Chord Sequence (Chords)")
+# plt.plot(hmm_out, label="Predicted Chord Sequence (Chords)")
 
 plt.xlabel("Time Slice")
 plt.ylabel("Chord")
 yt = [i for i in range(48)]
 plt.yticks(yt, [_chord_tuple_to_name(i) for i in _all_possible_chords()])
-plt.title("Arpeggiated Comparison (variance = .05)")
+plt.title("Arpeggiated V-I (variance = .05)")
 plt.legend()
 plt.show()
 

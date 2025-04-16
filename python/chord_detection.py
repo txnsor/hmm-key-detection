@@ -127,6 +127,7 @@ def chord_seq(hmm_predictions, strength_values=None):
     chords = _all_possible_chords(strength_values=sv)
     return [_chord_tuple_to_name(chords[i], strength_values=sv) for i in hmm_predictions]
 
+
 # plot predicted key with preset values and label
 def plot_file(file, label, fs=2.0, var=0.05, strength_values=None):
     # i dont need all of this handling, i know
@@ -137,7 +138,9 @@ def plot_file(file, label, fs=2.0, var=0.05, strength_values=None):
     plt.plot(hmm_out, label=label)
 
 def main():
-    file = "./midi/II.mid"
+    file = "./midi/simple.mid"
+
+    print(hmm_based_chords_from_chromas(chroma(file)))
 
     plot_file(file, "Predicted Chords (On/Off Heuristic, var=0.05)")
     # plot_file(file, "Predicted Chords (V->I Heuristic)", strength_values=(1.0, 0.333, 0.666, 0.333, 0.0))

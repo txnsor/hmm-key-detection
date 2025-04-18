@@ -85,7 +85,7 @@ def _normalize(chroma):
 # return normalized 12xN chroma array of a midi file
 def chroma(file, fs=2.0): return _normalize(pretty_midi.PrettyMIDI(file).get_chroma(fs=fs))
 
-# use a hidden markov model to predict key
+# use a hidden markov model to predict chords
 def hmm_based_chords_from_chromas(chromas, fs=2.0, var=0.05, strength_values=None):
     # init chord patterns
     sv = strength_values
@@ -96,7 +96,7 @@ def hmm_based_chords_from_chromas(chromas, fs=2.0, var=0.05, strength_values=Non
     n = len(states)
 
     # gaussian HMM for cont. data over 48 possible chords
-    model = GaussianHMM(n_components = n, n_iter = 100, covariance_type="full")
+    model = GaussianHMM(n_components = n, n_iter = 100, covariance_type = "full")
 
     # initialize the transition matrix
     transmat  = np.ones((n, n)) / float(n)
@@ -138,7 +138,7 @@ def plot_file(file, label, fs=2.0, var=0.05, strength_values=None):
     plt.plot(hmm_out, label=label)
 
 def main():
-    file = "./midi/simple.mid"
+    file = "./midi/full.mid"
 
     print(hmm_based_chords_from_chromas(chroma(file)))
 
@@ -153,7 +153,7 @@ def main():
     plt.ylabel("Chord")
     yt = [i for i in range(48)]
     plt.yticks(yt, [_chord_tuple_to_name(i) for i in _all_possible_chords()])
-    plt.title("Arpeggiated V-I")
+    plt.title("Full Song Chord Prediction")
     plt.legend()
     plt.show()
 
